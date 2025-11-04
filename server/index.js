@@ -23,7 +23,8 @@ const allowedOrigins = [
   process.env.CLIENT_URL || 'http://localhost:5173',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
-  'https://courier-service-management-system-k.vercel.app'
+  'https://courier-service-management-system-k.vercel.app',
+  'https://courier-service-management-system.onrender.com'
 ];
 const corsOptions = {
   origin: (origin, callback) => {
@@ -73,6 +74,13 @@ app.use(cookieParser());
 app.use(morgan('dev'));
 
 app.get('/', (req, res) => res.json({ name: 'Track Bee API', status: 'OK' }));
+
+app.get('/api/health', (req, res) => {
+  const state = mongoose.connection.readyState;
+  const map = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+  const dbName = mongoose.connection?.connections?.[0]?.name || mongoose.connection?.name || process.env.MONGO_DB || 'trackbee';
+  res.json({ api: 'ok', db: map[state] || String(state), dbName });
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
