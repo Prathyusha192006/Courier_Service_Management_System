@@ -9,14 +9,18 @@ const upload = multer({ dest: 'uploads/' });
 router.use(auth, requireRole('rider'));
 
 router.get('/assigned', async (req, res) => {
-  const list = await Package.find({ rider: req.user._id, status: { $ne: 'Delivered' } });
-  const total = await Package.countDocuments({ rider: req.user._id });
-  const delivered = await Package.countDocuments({ rider: req.user._id, status: 'Delivered' });
-  const earnings = Math.round((await Package.aggregate([
-    { $match: { rider: req.user._id } },
-    { $group: { _id: null, sum: { $sum: '$price' } } }
-  ]))[0]?.sum * 0.7 || 0);
-  res.json({ deliveries: list, summary: { total, delivered, earnings } });
+  const [active, allList, total, delivered, agg] = await Promise.all([
+    Package.find({ rider: req.user._id, status: { $ne: 'Delivered' } }),
+    Package.find({ rider: req.user._id }),
+    Package.countDocuments({ rider: req.user._id }),
+    Package.countDocuments({ rider: req.user._id, status: 'Delivered' }),
+    Package.aggregate([
+      { $match: { rider: req.user._id } },
+      { $group: { _id: null, sum: { $sum: '$price' } } }
+    ])
+  ]);
+  const earnings = Math.round((agg[0]?.sum || 0) * 0.7);
+  res.json({ deliveries: active, allDeliveries: allList, summary: { total, delivered, earnings } });
 });
 
 // Attendance: check-in

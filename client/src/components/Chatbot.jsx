@@ -2,7 +2,13 @@ import React, { useState } from 'react'
 
 export default function Chatbot(){
   const [open, setOpen] = useState(false)
-  const [messages, setMessages] = useState([{ from:'bot', text:'Hi! Ask me about tracking, pricing, or delivery status.' }])
+  const [messages, setMessages] = useState([{ from:'bot', text:'Welcome to TrackBee! I can guide you. What do you want to do?', suggestions:[
+    'Track a package',
+    'Check pricing',
+    'How to send a package',
+    'Account help',
+    'Contact support'
+  ] }])
   const [input, setInput] = useState('')
   const [listening, setListening] = useState(false)
   const recognitionRef = React.useRef(null)
@@ -57,18 +63,76 @@ export default function Chatbot(){
     }catch(_){ /* ignore */ }
   }
 
+  const addBot = (text, suggestions) => ({ from:'bot', text, ...(suggestions ? { suggestions } : {}) })
+
   const send = (textOpt) => {
     const text = (textOpt ?? input).trim()
     if(!text) return
     const userMsg = { from:'you', text }
     const lower = text.toLowerCase()
-    let reply = "I'm a demo assistant. Try: 'price standard 10km' or 'status TB-XXXX'"
-    if(lower.includes('price')) reply = 'Standard base: ₹50 + ₹5/km. Express ~1.4x.'
-    if(lower.includes('status')) reply = 'Use the dashboard search with Tracking ID to get live status.'
-    if(lower.includes('contact')) reply = 'Support: support@trackbee.local'
-    setMessages(prev => [...prev, userMsg, { from:'bot', text: reply }])
+
+    const isTrackingId = /\b(tb[- ]?\d{3,}\b)/i.test(text)
+
+    let botMessages = []
+
+    if(lower === 'track a package' || lower.startsWith('track') || isTrackingId){
+      if(isTrackingId){
+        botMessages.push(addBot('Opening tracking guidance. Use your dashboard search with this ID for live status. If you are a customer, go to your dashboard > Track.', ['Check pricing', 'Account help', 'Contact support']))
+      } else {
+        botMessages.push(addBot('Enter your Tracking ID (e.g., TB-1234). I will point you to where to view status.', ['TB-1234', 'TB-5678']))
+      }
+    } else if(lower.includes('thank')){
+      botMessages.push(addBot("You're welcome! Happy to help. Anything else?", [
+        'Track a package',
+        'Check pricing',
+        'How to send a package',
+        'Account help'
+      ]))
+    } else if(lower === 'check pricing' || lower.includes('price') || lower.startsWith('pricing')){
+      const kmMatch = text.match(/(\d+(?:\.\d+)?)\s*km/i)
+      if(kmMatch){
+        const km = parseFloat(kmMatch[1])
+        const standard = 50 + 5*km
+        const express = Math.round((standard*1.4))
+        botMessages.push(addBot(`Estimated pricing for ${km} km: Standard ~ ₹${Math.round(standard)}, Express ~ ₹${express}.` , ['How to send a package', 'Track a package']))
+      } else {
+        botMessages.push(addBot('Standard: ₹50 base + ₹5/km. Express is ~1.4x. Enter distance like "pricing 10km".', ['pricing 5km', 'pricing 12km']))
+      }
+    } else if(lower === 'how to send a package' || lower.includes('how to send') || lower.includes('ship')){
+      botMessages.push(addBot('Steps: 1) Sign up or log in. 2) Create shipment in your dashboard. 3) Print label. 4) Handover to rider or drop-off.', ['Signup', 'Login', 'Account help']))
+    } else if(lower === 'account help' || lower.includes('account') || lower.includes('login') || lower.includes('signup')){
+      if(lower.includes('signup')){
+        botMessages.push(addBot('Create a new account from the Signup page. After signup, access your dashboard based on your role.', ['Login', 'How to send a package']))
+      } else if(lower.includes('login')){
+        botMessages.push(addBot('Use the Login page with your credentials. If you forgot your password, use reset on the login screen if available.', ['Signup', 'Track a package']))
+      } else {
+        botMessages.push(addBot('Account help: You can log in or sign up from the header. Customers, Riders, and Admins have separate dashboards.', ['Login', 'Signup']))
+      }
+    } else if(lower === 'contact support' || lower.includes('contact') || lower.includes('support')){
+      botMessages.push(addBot('Support: support@trackbee.local. Share your Tracking ID and issue details for faster help.', ['Track a package', 'Check pricing']))
+    } else if(lower === 'help' || lower === 'menu' || lower.includes('guide')){
+      botMessages.push(addBot('Here are some things I can help with:', [
+        'Track a package',
+        'Check pricing',
+        'How to send a package',
+        'Account help',
+        'Contact support'
+      ]))
+    } else {
+      botMessages.push(addBot("I can guide you with tracking, pricing, how to send, account help, or contacting support.", [
+        'Track a package',
+        'Check pricing',
+        'How to send a package',
+        'Account help',
+        'Contact support'
+      ]))
+    }
+
+    const finalBots = botMessages.length ? botMessages : [addBot("Sorry, I didn't catch that.", ['Help'])]
+    setMessages(prev => [...prev, userMsg, ...finalBots])
     setInput('')
-    speak(reply)
+    const firstReply = finalBots[0]?.text || ''
+    if(firstReply) speak(firstReply)
   }
 
   const toggleMic = () => {
@@ -111,6 +175,13 @@ export default function Chatbot(){
               <div key={i} className={`chat-bubble ${m.from==='you' ? 'you' : 'bot'}`}>
                 <small className="muted">{m.from}</small>
                 <div>{m.text}</div>
+                {m.from==='bot' && Array.isArray(m.suggestions) && m.suggestions.length>0 && (
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
+                    {m.suggestions.map((s,j)=> (
+                      <button key={j} className="btn" type="button" onClick={()=>send(s)}>{s}</button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             <div ref={endRef} />

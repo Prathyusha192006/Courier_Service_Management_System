@@ -3,15 +3,37 @@ import { useAuth } from '../../context/AuthContext'
 
 export default function RiderDashboard(){
   const { token, API_URL, socket, user } = useAuth()
-  const [data, setData] = useState({ deliveries:[], summary:{} })
+  const [data, setData] = useState({ deliveries:[], allDeliveries:[], summary:{} })
   const [message, setMessage] = useState('')
   const [watchId, setWatchId] = useState(null)
+  const [error, setError] = useState('')
+  const [updating, setUpdating] = useState('') // trackingId currently updating
 
   const load = async () => {
-    const d = await (await fetch(`${API_URL}/api/rider/assigned`, { headers:{ Authorization:`Bearer ${token}` }})).json()
-    setData(d)
-    if((d.deliveries||[]).some(x => x.status === 'In Transit')){
-      startGeoWatch()
+    setError('')
+    try {
+      if (!token) return
+      // debug: print identity and API url
+      try { console.debug('RiderDashboard load()', { api: `${API_URL}/api/rider/assigned`, userId: user?._id, riderId: user?.riderId }) } catch(_) {}
+      const resp = await fetch(`${API_URL}/api/rider/assigned`, { headers:{ Authorization:`Bearer ${token}` }})
+      const d = await resp.json()
+      // Normalize payload to support both old and new API shapes
+      const allDeliveries = Array.isArray(d.allDeliveries) ? d.allDeliveries : (Array.isArray(d.deliveries) ? d.deliveries : [])
+      const deliveries = Array.isArray(d.deliveries) ? d.deliveries : allDeliveries.filter(x => x.status !== 'Delivered')
+      const summary = d.summary || {
+        total: allDeliveries.length,
+        delivered: allDeliveries.filter(x => x.status === 'Delivered').length,
+        earnings: 0
+      }
+      const normalized = { deliveries, allDeliveries, summary }
+      try { console.debug('Assigned response (normalized)', { deliveries: deliveries.length, allDeliveries: allDeliveries.length, summary }) } catch(_) {}
+      setData(normalized)
+      // start geowatch if any active delivery present in fresh data
+      if((deliveries||[]).some(x => x.status !== 'Delivered')){
+        startGeoWatch()
+      }
+    } catch (e) {
+      setError('Failed to load assigned deliveries')
     }
   }
 
@@ -27,10 +49,29 @@ export default function RiderDashboard(){
   }, [socket])
 
   const updateStatus = async (trackingId, status) => {
-    await fetch(`${API_URL}/api/rider/status`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify({ trackingId, status }) })
-    load()
-    if(status === 'In Transit') startGeoWatch()
-    if(status === 'Delivered') maybeStopGeoWatch()
+    if(!trackingId) return
+    setError('')
+    setMessage('')
+    setUpdating(trackingId)
+    try{
+      const resp = await fetch(`${API_URL}/api/rider/status`, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+        body: JSON.stringify({ trackingId, status })
+      })
+      const d = await resp.json().catch(()=>({}))
+      if(!resp.ok){
+        throw new Error(d.message || 'Failed to update status')
+      }
+      setMessage(status === 'Delivered' ? `Marked ${trackingId} as Delivered` : `Updated ${trackingId} to ${status}`)
+      await load()
+      if(status === 'In Transit') startGeoWatch()
+      if(status === 'Delivered') maybeStopGeoWatch()
+    }catch(e){
+      setError(e.message || 'Failed to update status')
+    }finally{
+      setUpdating('')
+    }
   }
 
   const startGeoWatch = () => {
@@ -64,16 +105,18 @@ export default function RiderDashboard(){
   const checkIn = async () => { await fetch(`${API_URL}/api/rider/attendance/checkin`, { method:'POST', headers:{ Authorization:`Bearer ${token}` } }); load() }
   const checkOut = async () => { await fetch(`${API_URL}/api/rider/attendance/checkout`, { method:'POST', headers:{ Authorization:`Bearer ${token}` } }); load() }
 
-  const inTransit = (data.deliveries||[]).filter(d => d.status === 'In Transit')
+  const activeNotDelivered = (data.deliveries||[]).filter(d => d.status !== 'Delivered')
 
   return (
     <div className="rider-wrap">
       <div className="section-head">
         <h3>Rider Dashboard</h3>
         <div className="badge">ID: <strong style={{ marginLeft: 4 }}>{user?.riderId || '-'}</strong></div>
+        <div className="muted" style={{ marginTop: 6 }}>User _id: <code>{user?._id || '-'}</code></div>
       </div>
 
       {message && <div className="alert">{message}</div>}
+      {error && <div className="alert danger">{error}</div>}
 
       <div className="rider-stats">
         <div className="rider-stat accent-blue">
@@ -95,37 +138,42 @@ export default function RiderDashboard(){
         <button className="btn danger" onClick={checkOut}>Check-out</button>
       </div>
 
-      <div className="section-head">
-        <h3>Active Deliveries</h3>
-        <div className="muted">{inTransit.length} in transit</div>
-      </div>
-      <div className="rider-grid">
-        {inTransit.length === 0 && <div className="muted">No active deliveries in transit.</div>}
-        {inTransit.map(p => (
+      <div className="active-box">
+        <div className="section-head">
+          <h3>Active Deliveries</h3>
+          <div className="muted">{activeNotDelivered.length} active</div>
+        </div>
+        <div className="rider-grid">
+          {activeNotDelivered.length === 0 && <div className="muted">No active deliveries. If you were just assigned, wait a moment or refresh.</div>}
+          {activeNotDelivered.map(p => (
           <div className="rider-card" key={p._id}>
             <div className="head">
               <div className="title">{p.trackingId}</div>
-              <span className={`badge status transit`}>In Transit</span>
+              <span className={`badge status ${p.status==='Delivered'?'done':p.status==='In Transit'?'transit':'pending'}`}>{p.status}</span>
             </div>
             <div className="meta">{p.receiver?.name} ({p.receiver?.phone})</div>
             <div className="row">
               {p.receiver?.geo?.lat && <a target="_blank" href={`https://maps.google.com/?q=${p.receiver.geo.lat},${p.receiver.geo.lng}`}>Open Map</a>}
             </div>
             <div className="row">
-              <button className="btn sm outline" onClick={startGeoWatch}>Start Location</button>
-              <button className="btn sm outline" onClick={maybeStopGeoWatch}>Stop Location</button>
-              <button className="btn sm danger" onClick={()=>updateStatus(p.trackingId,'Delivered')}>Mark Delivered</button>
+              <button className="btn sm outline" onClick={startGeoWatch} disabled={!!updating}>Start Location</button>
+              <button className="btn sm outline" onClick={maybeStopGeoWatch} disabled={!!updating}>Stop Location</button>
+              <button className="btn sm danger" onClick={()=>updateStatus(p.trackingId,'Delivered')} disabled={updating===p.trackingId}>{updating===p.trackingId ? 'Marking…' : 'Mark Delivered'}</button>
             </div>
           </div>
         ))}
       </div>
+      </div>
 
       <div className="section-head">
         <h3>All Assigned Deliveries</h3>
-        <div className="muted">{(data.deliveries||[]).length} total</div>
+        <div className="muted">{(data.allDeliveries||[]).length} total</div>
       </div>
       <div className="rider-grid">
-        {(data.deliveries||[]).map(p => (
+        {(data.allDeliveries||[]).length === 0 && (
+          <div className="muted">No deliveries assigned. Ensure the admin assigned to your exact account and the package status is not Delivered.</div>
+        )}
+        {(data.allDeliveries||[]).map(p => (
           <div className="rider-card" key={p._id}>
             <div className="head">
               <div className="title">{p.trackingId}</div>
@@ -136,8 +184,8 @@ export default function RiderDashboard(){
               {p.receiver?.geo?.lat && <a target="_blank" href={`https://maps.google.com/?q=${p.receiver.geo.lat},${p.receiver.geo.lng}`}>Open Map</a>}
             </div>
             <div className="row">
-              <button className="btn sm success" onClick={()=>updateStatus(p.trackingId,'In Transit')}>Start</button>
-              <button className="btn sm danger" onClick={()=>updateStatus(p.trackingId,'Delivered')}>Mark Delivered</button>
+              <button className="btn sm success" onClick={()=>updateStatus(p.trackingId,'In Transit')} disabled={updating===p.trackingId}>Start</button>
+              <button className="btn sm danger" onClick={()=>updateStatus(p.trackingId,'Delivered')} disabled={updating===p.trackingId}>{updating===p.trackingId ? 'Marking…' : 'Mark Delivered'}</button>
             </div>
           </div>
         ))}

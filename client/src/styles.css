@@ -685,9 +685,27 @@ body {
 .badge.status { padding: 4px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); }
 .badge.status.transit { background: rgba(234, 179, 8, 0.18); }
 .badge.status.done { background: rgba(34, 197, 94, 0.2); }
+.badge.status.pending { background: rgba(59, 130, 246, 0.18); }
 
 .section-head { display:flex; align-items:center; justify-content:space-between; margin: 4px 0 8px; }
 .section-head h3 { margin:0; }
+
+/* Active Deliveries special box */
+.active-box {
+  margin-top: 6px;
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+}
+.active-box .section-head { margin: 0 0 10px; }
+.active-box .rider-grid { gap: 16px; }
+.active-box .rider-card {
+  border-color: rgba(14,165,233,0.25);
+  box-shadow: 0 14px 36px rgba(14,165,233,0.18);
+}
+.active-box .rider-card .title { color: #e2e8f0; }
 
 /* Admin: Assign Rider form styles */
 .assign-form { gap: 10px; }
@@ -826,18 +844,21 @@ body {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .chat-bubble {
-  max-width: 78%;
-  padding: 8px 10px;
-  border-radius: 12px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-  color: #e9edf5; /* ensure readable text on dark bubbles in light theme */
+  max-width: 85%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.28);
+  color: #e5e7eb;
+  line-height: 1.35;
+  font-size: .95rem;
 }
-.chat-bubble.bot { align-self: flex-start; background: #141824; border: 1px solid var(--line); }
-.chat-bubble.you { align-self: flex-end; background: #1f2432; border: 1px solid rgba(255,255,255,0.06); }
-.chat-bubble .muted { color: #a0a6b8; }
+.chat-bubble.bot { align-self: flex-start; background: #0f172a; border: 1px solid var(--line); color: #e5e7eb; }
+.chat-bubble.you { align-self: flex-end; background: linear-gradient(135deg, #1f2937, #111827); border: 1px solid rgba(255,255,255,0.08); color: #eef2ff; }
+.chat-bubble .muted { color: #9aa3b2; display: block; margin-bottom: 4px; font-size: .78rem; }
+.chat-bubble .btn { padding: 6px 10px; font-size: .8rem; border-radius: 10px; }
 .chat-input {
   padding: 10px;
   display: flex;
