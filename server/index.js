@@ -25,8 +25,20 @@ const allowedOrigins = [
   'http://127.0.0.1:5173',
   'https://courier-service-management-system-k.vercel.app'
 ];
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204
+};
+
 const io = new SocketIOServer(server, {
-  cors: { origin: allowedOrigins, credentials: true }
+  cors: { origin: allowedOrigins, credentials: true, methods: ['GET','POST'], allowedHeaders: ['Content-Type','Authorization'] }
 });
 
 // Socket auth and rooms by user id and role
@@ -53,9 +65,9 @@ io.on('connection', (socket) => {
 
 app.set('io', io);
 
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(cors(corsOptions));
 // Ensure preflight requests succeed for all routes
-app.options('*', cors({ origin: allowedOrigins, credentials: true }));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
