@@ -22,7 +22,8 @@ const server = http.createServer(app);
 const allowedOrigins = [
   process.env.CLIENT_URL || 'http://localhost:5173',
   'http://localhost:5173',
-  'http://127.0.0.1:5173'
+  'http://127.0.0.1:5173',
+  'https://courier-service-management-system-k.vercel.app'
 ];
 const io = new SocketIOServer(server, {
   cors: { origin: allowedOrigins, credentials: true }
@@ -53,6 +54,8 @@ io.on('connection', (socket) => {
 app.set('io', io);
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
+// Ensure preflight requests succeed for all routes
+app.options('*', cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
