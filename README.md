@@ -41,16 +41,9 @@ npm install
 npm install
 ```
 
-4) Seed sample users
-```
-# in server/
-node seed.js
-```
-- Admin: kitty1911@gmail.com / kitty1911 (ADMIN001)
-- Customer: sai@gmail.com / ammu1119
-- Rider: sravi@gmail.com / sravanthi (RIDER001)
 
-5) Run
+
+4) Run
 ```
 # in server/
 node index.js
