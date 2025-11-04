@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { io } from 'socket.io-client'
 
 const AuthContext = createContext(null)
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000')
 
 export function AuthProvider({ children }){
   const [user, setUser] = useState(null)
@@ -29,9 +29,12 @@ export function AuthProvider({ children }){
   }, [token])
 
   const login = (email, password, role, ids = {}) => {
-    const body = { email, password, role }
-    if(ids.adminId) body.adminId = ids.adminId
-    if(ids.riderId) body.riderId = ids.riderId
+    const cleanEmail = (email || '').trim().toLowerCase()
+    const cleanAdminId = (ids.adminId || '').trim()
+    const cleanRiderId = (ids.riderId || '').trim()
+    const body = { email: cleanEmail, password }
+    if(cleanAdminId) body.adminId = cleanAdminId
+    if(cleanRiderId) body.riderId = cleanRiderId
     return fetch(`${API_URL}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(async r => {
         const data = await r.json().catch(() => ({}))

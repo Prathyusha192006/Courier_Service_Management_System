@@ -24,11 +24,10 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { email, password, role, adminId, riderId } = req.body;
+    const { email, password, adminId, riderId } = req.body;
     const user = await User.findOne({ email });
-    if(!user || user.role !== role) return res.status(400).json({ message: 'Invalid credentials' });
-    if(role === 'admin' && user.adminId && adminId && user.adminId !== adminId) return res.status(400).json({ message: 'Invalid admin ID' });
-    if(role === 'rider' && user.riderId && riderId && user.riderId !== riderId) return res.status(400).json({ message: 'Invalid rider ID' });
+    if(!user) return res.status(400).json({ message: 'Invalid credentials' });
+    // Do not enforce adminId/riderId on login; rely on email+password only
     const ok = await user.comparePassword(password);
     if(!ok) return res.status(400).json({ message: 'Invalid credentials' });
     const token = signToken(user);

@@ -34,10 +34,10 @@ export default function Login(){
             </select>
           </label>
           {form.role==='admin' && (
-            <label>Admin ID<input value={form.adminId} onChange={e=>setForm({...form, adminId:e.target.value})} required/></label>
+            <label>Admin ID<input value={form.adminId} onChange={e=>setForm({...form, adminId:e.target.value})}/></label>
           )}
           {form.role==='rider' && (
-            <label>Rider ID<input value={form.riderId} onChange={e=>setForm({...form, riderId:e.target.value})} required/></label>
+            <label>Rider ID<input value={form.riderId} onChange={e=>setForm({...form, riderId:e.target.value})}/></label>
           )}
           <div className="actions">
             <button className="btn primary-blue" type="submit">Sign In</button>
