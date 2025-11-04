@@ -35,10 +35,7 @@ const isAllowedOrigin = (origin) => {
   return originPatterns.some((re) => re.test(origin));
 };
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (isAllowedOrigin(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -47,10 +44,7 @@ const corsOptions = {
 
 const io = new SocketIOServer(server, {
   cors: {
-    origin: (origin, callback) => {
-      if (isAllowedOrigin(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
-    },
+    origin: true,
     credentials: true,
     methods: ['GET','POST'],
     allowedHeaders: ['Content-Type','Authorization']
