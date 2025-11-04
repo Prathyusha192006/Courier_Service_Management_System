@@ -19,17 +19,24 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const allowedOrigins = [
+const exactOrigins = [
   process.env.CLIENT_URL || 'http://localhost:5173',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'https://courier-service-management-system-k.vercel.app',
   'https://courier-service-management-system.onrender.com'
 ];
+const originPatterns = [
+  /^https?:\/\/([a-z0-9-]+)\.vercel\.app$/i
+];
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  if (exactOrigins.includes(origin)) return true;
+  return originPatterns.some((re) => re.test(origin));
+};
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (isAllowedOrigin(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -39,7 +46,15 @@ const corsOptions = {
 };
 
 const io = new SocketIOServer(server, {
-  cors: { origin: allowedOrigins, credentials: true, methods: ['GET','POST'], allowedHeaders: ['Content-Type','Authorization'] }
+  cors: {
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET','POST'],
+    allowedHeaders: ['Content-Type','Authorization']
+  }
 });
 
 // Socket auth and rooms by user id and role
