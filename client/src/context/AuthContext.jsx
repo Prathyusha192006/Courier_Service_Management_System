@@ -47,13 +47,20 @@ export function AuthProvider({ children }){
     }
   }, [token])
 
-  const login = (email, password, role, ids = {}) => {
-    const cleanEmail = (email || '').trim().toLowerCase()
-    const cleanAdminId = (ids.adminId || '').trim()
-    const cleanRiderId = (ids.riderId || '').trim()
-    const body = { email: cleanEmail, password }
-    if(cleanAdminId) body.adminId = cleanAdminId
-    if(cleanRiderId) body.riderId = cleanRiderId
+const login = (email, password, role, ids = {}) => {
+  const cleanEmail = (email || '').trim().toLowerCase()
+  const cleanRole = (role || '').trim().toLowerCase()
+  const cleanAdminId = (ids.adminId || '').trim()
+  const cleanRiderId = (ids.riderId || '').trim()
+
+  const body = {
+    email: cleanEmail,
+    password,
+    role: cleanRole
+  }
+
+  if (cleanAdminId) body.adminId = cleanAdminId
+  if (cleanRiderId) body.riderId = cleanRiderId
     return fetch(`${API_URL}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(async r => {
         const data = await r.json().catch(() => ({}))
